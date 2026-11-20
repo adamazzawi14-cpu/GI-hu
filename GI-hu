@@ -1,0 +1,1487 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local Stats = game:GetService("Stats")
+local CoreGui = game:GetService("CoreGui")
+
+-- توكن جلسة جديد لإيقاف أي نسخة سابقة فوراً ومنع التعارض بعد الخروج والدخول
+local sessionToken = tostring(os.clock()) .. "_" .. tostring(math.random(1000, 9999))
+_G.GI_Hub_V7_Session = sessionToken
+
+local function isCurrentSession()
+	return _G.GI_Hub_V7_Session == sessionToken
+end
+
+local player = Players.LocalPlayer
+while not player do
+	task.wait(0.05)
+	player = Players.LocalPlayer
+end
+
+local function getGuiParent()
+	local pg = player:FindFirstChildOfClass("PlayerGui")
+	if pg then return pg end
+	pcall(function() pg = player:WaitForChild("PlayerGui", 4) end)
+	if pg then return pg end
+	local okHui, hui = pcall(function()
+		return (typeof(gethui) == "function" and gethui()) or nil
+	end)
+	if okHui and hui then return hui end
+	return CoreGui
+end
+
+local guiParent = nil
+for _ = 1, 25 do
+	guiParent = getGuiParent()
+	if guiParent then break end
+	task.wait(0.08)
+end
+if not guiParent then
+	guiParent = CoreGui
+end
+
+local oldNames = {
+	"GI_Hub_Mobile", "GI_Hub_v3", "GI_Hub_v4", "GI_Hub_v5",
+	"GI_Hub_v6", "GI_Hub_v7", "GI_Hub_v8", "GI_Hub_v9",
+	"CenterDashGui", "AutoFollowGui", "AntiWallSnagUI",
+	"GI_Hub_Complete", "GI_Hub_Direct", "GI_Hub_Clean", "GI_Hub_Step1", "GI_Hub_Fixed"
+}
+
+for _, parentTarget in ipairs({ guiParent, CoreGui, player:FindFirstChildOfClass("PlayerGui") }) do
+	if parentTarget then
+		for _, name in ipairs(oldNames) do
+			pcall(function()
+				local old = parentTarget:FindFirstChild(name)
+				if old then old:Destroy() end
+			end)
+		end
+	end
+end
+
+local currentLang = "ar"
+local texts = {
+	ar = {
+		hubName = "GI HUB V7",
+		tagText = "♛ V7",
+		loadingSub = "جاري تجهيز السكربت...",
+		chooseLang = "اختر اللغة / Choose Language",
+		tabAssist = "⚡ اسست",
+		tabFeatures = "🎭 ميزات",
+		tabEffects = "✨ تأثيرات",
+		tabQuality = "⚙️ جودة",
+		tabSettings = "📊 إعدادات",
+		targetNone = "🎯 الهدف: متوقف",
+		targetFound = "🎯 الهدف: %s",
+		assistOff = "⚡ ASSIST OFF",
+		assistOn = "⚡ ASSIST ON",
+		dash = "💥 دعس",
+		dashOn = "💥 دعس ON",
+		dashOff = "💥 دعس OFF",
+		rangeFmt = "📏 RANGE: %d",
+		gapFmt = "↔️ GAP: %.1f",
+		noWall = "🧱 بدون تعلق بالجدران",
+		wallHop = "🦘 ولل هوب",
+		doubleJump = "🪽 دبل قفز",
+		safeHop = "🚀 قفزة نجاة",
+		povOpt = "🔭 POV",
+		povSliderFmt = "🔭 قوة POV: %d",
+		speed = "🏃 زيادة السرعة",
+		fxAura = "💎 هالة ضوئية خفيفة",
+		fxTrail = "✨ أثر حركة ناعم",
+		fxClear = "🧹 إزالة التأثيرات",
+		qFast = "🚀 وضع الجوال الضعيف",
+		qBalanced = "⚖️ وضع متوازن",
+		qHigh = "✨ حواف مضيئة ناعمة",
+		uiLockOn = "🔓 قفل الواجهة: ON (قابل للسحب)",
+		uiLockOff = "🔒 قفل الواجهة: OFF (ثابت)",
+		uiScaleFmt = "🔍 تكبير الواجهة: %.2fx",
+		infoTitle = "ℹ️ معلومات",
+		pingFpsFmt = "📶 البنج: %d ms   |   🎞️ الفريمات: %d FPS",
+		tbStatsFmt = "💣 قتلات تايم بومب: %d   |   🏆 فوزات تايم بومب: %d",
+		playerSpeedFmt = "اللاعب: %s   |   السرعة: %d"
+	},
+	en = {
+		hubName = "GI HUB V7",
+		tagText = "♛ V7",
+		loadingSub = "Preparing script...",
+		chooseLang = "Choose Language / اختر اللغة",
+		tabAssist = "⚡ Assist",
+		tabFeatures = "🎭 Features",
+		tabEffects = "✨ Effects",
+		tabQuality = "⚙️ Quality",
+		tabSettings = "📊 Settings",
+		targetNone = "🎯 Target: Idle",
+		targetFound = "🎯 Target: %s",
+		assistOff = "⚡ ASSIST OFF",
+		assistOn = "⚡ ASSIST ON",
+		dash = "💥 Stomp",
+		dashOn = "💥 Stomp ON",
+		dashOff = "💥 Stomp OFF",
+		rangeFmt = "📏 RANGE: %d",
+		gapFmt = "↔️ GAP: %.1f",
+		noWall = "🧱 Anti-Wall",
+		wallHop = "🦘 Wall Hop",
+		doubleJump = "🪽 Double Jump",
+		safeHop = "🚀 Safe Hop",
+		povOpt = "🔭 POV",
+		povSliderFmt = "🔭 POV Power: %d",
+		speed = "🏃 Speed",
+		fxAura = "💎 Light Glow Aura",
+		fxTrail = "✨ Smooth Motion Trail",
+		fxClear = "🧹 Clear Effects",
+		qFast = "🚀 Low-End Phone Mode",
+		qBalanced = "⚖️ Balanced Mode",
+		qHigh = "✨ Soft Rim Light",
+		uiLockOn = "🔓 UI Drag: ON (Movable)",
+		uiLockOff = "🔒 UI Drag: OFF (Locked)",
+		uiScaleFmt = "🔍 UI Scale: %.2fx",
+		infoTitle = "ℹ️ Info",
+		pingFpsFmt = "📶 Ping: %d ms   |   🎞️ FPS: %d FPS",
+		tbStatsFmt = "💣 Time Bomb Kills: %d   |   🏆 Time Bomb Wins: %d",
+		playerSpeedFmt = "Player: %s   |   Speed: %d"
+	}
+}
+
+local function txt(key)
+	local pack = texts[currentLang] or texts.ar
+	return pack[key] or texts.ar[key] or key
+end
+
+local function paintGreen(btn, stroke, active)
+	if not btn then return end
+	if active then
+		btn.BackgroundColor3 = Color3.fromRGB(30, 185, 95)
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		if stroke then
+			stroke.Color = Color3.fromRGB(165, 255, 205)
+			stroke.Thickness = 1.8
+			stroke.Transparency = 0
+		end
+	else
+		btn.BackgroundColor3 = Color3.fromRGB(25, 34, 54)
+		btn.TextColor3 = Color3.fromRGB(230, 240, 255)
+		if stroke then
+			stroke.Color = Color3.fromRGB(125, 215, 255)
+			stroke.Thickness = 1.1
+			stroke.Transparency = 0.4
+		end
+	end
+end
+
+local function bindClick(btn, fn)
+	if not btn then return end
+	local lastFire = 0
+	local function trigger()
+		if not isCurrentSession() then return end
+		local t = os.clock()
+		if t - lastFire < 0.14 then return end
+		lastFire = t
+		pcall(fn)
+	end
+	btn.MouseButton1Click:Connect(trigger)
+	btn.Activated:Connect(trigger)
+end
+
+local function makeDraggable(guiObj, onTap)
+	guiObj.Active = true
+	local dragging = false
+	local dragStart = Vector2.zero
+	local startPos = guiObj.Position
+	local moved = false
+
+	guiObj.InputBegan:Connect(function(input)
+		if not isCurrentSession() then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			moved = false
+			dragStart = Vector2.new(input.Position.X, input.Position.Y)
+			startPos = guiObj.Position
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if not isCurrentSession() then return end
+		if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+			local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStart
+			if delta.Magnitude > 14 then
+				moved = true
+			end
+			guiObj.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			if dragging then
+				dragging = false
+				if not moved and onTap then
+					pcall(onTap)
+				end
+			end
+		end
+	end)
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "GI_Hub_v7"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 2147483647
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = guiParent
+
+local rectBtn = Instance.new("TextButton")
+rectBtn.Size = UDim2.new(0, 114, 0, 32)
+rectBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+rectBtn.Position = UDim2.new(0.5, 0, 0.88, 0)
+rectBtn.BackgroundColor3 = Color3.fromRGB(16, 20, 32)
+rectBtn.TextColor3 = Color3.fromRGB(235, 246, 255)
+rectBtn.Text = "✨ GI HUB V7"
+rectBtn.Font = Enum.Font.GothamBlack
+rectBtn.TextSize = 11
+rectBtn.AutoButtonColor = false
+rectBtn.Visible = false
+rectBtn.ZIndex = 60
+rectBtn.Parent = gui
+Instance.new("UICorner", rectBtn).CornerRadius = UDim.new(0, 9)
+local rectStroke = Instance.new("UIStroke")
+rectStroke.Color = Color3.fromRGB(130, 225, 255)
+rectStroke.Thickness = 1.6
+rectStroke.Parent = rectBtn
+
+local assistFloatingBtn = Instance.new("TextButton")
+assistFloatingBtn.Name = "AssistFloatingBtn"
+assistFloatingBtn.Size = UDim2.new(0, 124, 0, 36)
+assistFloatingBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+assistFloatingBtn.Position = UDim2.new(0.5, -135, 0.78, 0)
+assistFloatingBtn.BackgroundColor3 = Color3.fromRGB(25, 34, 54)
+assistFloatingBtn.TextColor3 = Color3.fromRGB(230, 240, 255)
+assistFloatingBtn.Text = txt("assistOff")
+assistFloatingBtn.Font = Enum.Font.GothamBlack
+assistFloatingBtn.TextSize = 11
+assistFloatingBtn.AutoButtonColor = false
+assistFloatingBtn.Visible = false
+assistFloatingBtn.ZIndex = 92
+assistFloatingBtn.Parent = gui
+Instance.new("UICorner", assistFloatingBtn).CornerRadius = UDim.new(0, 9)
+
+local assistFloatStroke = Instance.new("UIStroke")
+assistFloatStroke.Color = Color3.fromRGB(125, 215, 255)
+assistFloatStroke.Thickness = 1.2
+assistFloatStroke.Transparency = 0.4
+assistFloatStroke.Parent = assistFloatingBtn
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 486, 0, 286)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(12, 15, 24)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.ClipsDescendants = true
+mainFrame.ZIndex = 20
+mainFrame.Parent = gui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 15)
+
+local mainScale = Instance.new("UIScale")
+mainScale.Scale = 1
+mainScale.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(135, 225, 255)
+mainStroke.Thickness = 1.8
+mainStroke.Transparency = 0.2
+mainStroke.Parent = mainFrame
+
+local topHeader = Instance.new("Frame")
+topHeader.Size = UDim2.new(1, -16, 0, 34)
+topHeader.Position = UDim2.new(0, 8, 0, 8)
+topHeader.BackgroundColor3 = Color3.fromRGB(20, 26, 40)
+topHeader.BorderSizePixel = 0
+topHeader.ZIndex = 22
+topHeader.Parent = mainFrame
+Instance.new("UICorner", topHeader).CornerRadius = UDim.new(0, 10)
+
+local topHeaderStroke = Instance.new("UIStroke")
+topHeaderStroke.Color = Color3.fromRGB(135, 225, 255)
+topHeaderStroke.Thickness = 1.2
+topHeaderStroke.Transparency = 0.35
+topHeaderStroke.Parent = topHeader
+
+local hubLogoLbl = Instance.new("TextLabel")
+hubLogoLbl.Size = UDim2.new(0, 170, 1, 0)
+hubLogoLbl.Position = UDim2.new(0, 10, 0, 0)
+hubLogoLbl.BackgroundTransparency = 1
+hubLogoLbl.TextColor3 = Color3.fromRGB(240, 248, 255)
+hubLogoLbl.Text = "♛ GI HUB V7"
+hubLogoLbl.TextXAlignment = Enum.TextXAlignment.Left
+hubLogoLbl.Font = Enum.Font.GothamBlack
+hubLogoLbl.TextSize = 14
+hubLogoLbl.ZIndex = 23
+hubLogoLbl.Parent = topHeader
+
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 26, 0, 22)
+minBtn.Position = UDim2.new(1, -34, 0.5, -11)
+minBtn.BackgroundColor3 = Color3.fromRGB(210, 60, 75)
+minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minBtn.Text = "—"
+minBtn.Font = Enum.Font.GothamBlack
+minBtn.TextSize = 12
+minBtn.AutoButtonColor = false
+minBtn.ZIndex = 24
+minBtn.Parent = topHeader
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 7)
+
+local uiDragEnabled = true
+do
+	local dragging = false
+	local dragStart = Vector2.zero
+	local startPos = mainFrame.Position
+	topHeader.InputBegan:Connect(function(input)
+		if not isCurrentSession() or not uiDragEnabled then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = Vector2.new(input.Position.X, input.Position.Y)
+			startPos = mainFrame.Position
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if not isCurrentSession() or not uiDragEnabled then
+			dragging = false
+			return
+		end
+		if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+			local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStart
+			mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+end
+
+local function setWindowOpen(isOpen)
+	if isOpen then
+		rectBtn.Visible = false
+		mainFrame.Visible = true
+		mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+		mainScale.Scale = 0.92
+		TweenService:Create(mainScale, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	else
+		mainFrame.Visible = false
+		rectBtn.Visible = true
+	end
+end
+
+bindClick(minBtn, function() setWindowOpen(false) end)
+makeDraggable(rectBtn, function() setWindowOpen(true) end)
+
+local topTabsRow = Instance.new("Frame")
+topTabsRow.Size = UDim2.new(1, -16, 0, 30)
+topTabsRow.Position = UDim2.new(0, 8, 0, 47)
+topTabsRow.BackgroundColor3 = Color3.fromRGB(17, 22, 34)
+topTabsRow.BorderSizePixel = 0
+topTabsRow.ZIndex = 22
+topTabsRow.Parent = mainFrame
+Instance.new("UICorner", topTabsRow).CornerRadius = UDim.new(0, 9)
+
+local tabsLayout = Instance.new("UIListLayout")
+tabsLayout.FillDirection = Enum.FillDirection.Horizontal
+tabsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+tabsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+tabsLayout.Padding = UDim.new(0, 5)
+tabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tabsLayout.Parent = topTabsRow
+
+local pages = {}
+local tabBtns = {}
+
+local function switchTab(name)
+	for pName, page in pairs(pages) do
+		page.Visible = (pName == name)
+	end
+	for tName, btn in pairs(tabBtns) do
+		local selected = (tName == name)
+		btn.BackgroundColor3 = selected and Color3.fromRGB(0, 145, 255) or Color3.fromRGB(25, 33, 52)
+		btn.TextColor3 = selected and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(190, 206, 232)
+	end
+end
+
+local function makeTopTab(name, key, order)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0, 88, 0, 22)
+	b.LayoutOrder = order
+	b.BackgroundColor3 = Color3.fromRGB(25, 33, 52)
+	b.TextColor3 = Color3.fromRGB(190, 206, 232)
+	b.Text = txt(key)
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 10
+	b.AutoButtonColor = false
+	b.ZIndex = 24
+	b.Parent = topTabsRow
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 7)
+	bindClick(b, function() switchTab(name) end)
+	tabBtns[name] = b
+	return b
+end
+
+local tAssist = makeTopTab("assist", "tabAssist", 1)
+local tFeatures = makeTopTab("features", "tabFeatures", 2)
+local tEffects = makeTopTab("effects", "tabEffects", 3)
+local tQuality = makeTopTab("quality", "tabQuality", 4)
+local tSettings = makeTopTab("settings", "tabSettings", 5)
+
+local bodyHolder = Instance.new("Frame")
+bodyHolder.Size = UDim2.new(1, -16, 1, -88)
+bodyHolder.Position = UDim2.new(0, 8, 0, 82)
+bodyHolder.BackgroundTransparency = 1
+bodyHolder.ZIndex = 22
+bodyHolder.Parent = mainFrame
+
+local function makeOptionButton(parent, pos, size, key)
+	local btn = Instance.new("TextButton")
+	btn.Position = pos
+	btn.Size = size
+	btn.BackgroundColor3 = Color3.fromRGB(25, 34, 54)
+	btn.TextColor3 = Color3.fromRGB(230, 240, 255)
+	btn.Text = txt(key)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 11
+	btn.AutoButtonColor = false
+	btn.ZIndex = 25
+	btn.Parent = parent
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 9)
+
+	local st = Instance.new("UIStroke")
+	st.Color = Color3.fromRGB(125, 215, 255)
+	st.Thickness = 1.1
+	st.Transparency = 0.4
+	st.Parent = btn
+
+	return btn, st
+end
+
+-- ==================== 1. ASSIST ====================
+local pageAssist = Instance.new("Frame")
+pageAssist.Size = UDim2.new(1, 0, 1, 0)
+pageAssist.BackgroundTransparency = 1
+pageAssist.Visible = true
+pageAssist.ZIndex = 23
+pageAssist.Parent = bodyHolder
+pages.assist = pageAssist
+
+local targetStatusLbl = Instance.new("TextLabel")
+targetStatusLbl.Size = UDim2.new(0, 225, 0, 28)
+targetStatusLbl.Position = UDim2.new(0, 0, 0, 4)
+targetStatusLbl.BackgroundColor3 = Color3.fromRGB(19, 26, 42)
+targetStatusLbl.TextColor3 = Color3.fromRGB(150, 225, 255)
+targetStatusLbl.Text = txt("targetNone")
+targetStatusLbl.Font = Enum.Font.GothamBold
+targetStatusLbl.TextSize = 11
+targetStatusLbl.ZIndex = 24
+targetStatusLbl.Parent = pageAssist
+Instance.new("UICorner", targetStatusLbl).CornerRadius = UDim.new(0, 8)
+
+local rangeValue = 35
+local rangeBar = Instance.new("TextButton")
+rangeBar.Size = UDim2.new(0, 225, 0, 52)
+rangeBar.Position = UDim2.new(0, 0, 0, 40)
+rangeBar.BackgroundColor3 = Color3.fromRGB(25, 34, 54)
+rangeBar.Text = ""
+rangeBar.AutoButtonColor = false
+rangeBar.ZIndex = 24
+rangeBar.Parent = pageAssist
+Instance.new("UICorner", rangeBar).CornerRadius = UDim.new(0, 9)
+
+local rangeFill = Instance.new("Frame")
+rangeFill.Size = UDim2.new(0.4, 0, 1, 0)
+rangeFill.BackgroundColor3 = Color3.fromRGB(0, 145, 255)
+rangeFill.BorderSizePixel = 0
+rangeFill.ZIndex = 25
+rangeFill.Parent = rangeBar
+Instance.new("UICorner", rangeFill).CornerRadius = UDim.new(0, 9)
+
+local rangeLbl = Instance.new("TextLabel")
+rangeLbl.Size = UDim2.new(1, 0, 1, 0)
+rangeLbl.BackgroundTransparency = 1
+rangeLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+rangeLbl.Text = string.format(txt("rangeFmt"), rangeValue)
+rangeLbl.Font = Enum.Font.GothamBlack
+rangeLbl.TextSize = 11
+rangeLbl.ZIndex = 26
+rangeLbl.Parent = rangeBar
+
+local gapValue = 2.5
+local gapBar = Instance.new("TextButton")
+gapBar.Size = UDim2.new(0, 225, 0, 52)
+gapBar.Position = UDim2.new(0, 0, 0, 100)
+gapBar.BackgroundColor3 = Color3.fromRGB(25, 34, 54)
+gapBar.Text = ""
+gapBar.AutoButtonColor = false
+gapBar.ZIndex = 24
+gapBar.Parent = pageAssist
+Instance.new("UICorner", gapBar).CornerRadius = UDim.new(0, 9)
+
+local gapFill = Instance.new("Frame")
+gapFill.Size = UDim2.new(0.25, 0, 1, 0)
+gapFill.BackgroundColor3 = Color3.fromRGB(0, 145, 255)
+gapFill.BorderSizePixel = 0
+gapFill.ZIndex = 25
+gapFill.Parent = gapBar
+Instance.new("UICorner", gapFill).CornerRadius = UDim.new(0, 9)
+
+local gapLbl = Instance.new("TextLabel")
+gapLbl.Size = UDim2.new(1, 0, 1, 0)
+gapLbl.BackgroundTransparency = 1
+gapLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+gapLbl.Text = string.format(txt("gapFmt"), gapValue)
+gapLbl.Font = Enum.Font.GothamBlack
+gapLbl.TextSize = 11
+gapLbl.ZIndex = 26
+gapLbl.Parent = gapBar
+
+local assistMenuEnabled = false
+local assistRunning = false
+local assistBtn, assistStroke = makeOptionButton(pageAssist, UDim2.new(0, 235, 0, 16), UDim2.new(0, 235, 0, 62), "assistOff")
+local dashSpawnBtn, dashSpawnStroke = makeOptionButton(pageAssist, UDim2.new(0, 235, 0, 88), UDim2.new(0, 235, 0, 62), "dash")
+
+-- ==================== 2. FEATURES ====================
+local pageFeatures = Instance.new("Frame")
+pageFeatures.Size = UDim2.new(1, 0, 1, 0)
+pageFeatures.BackgroundTransparency = 1
+pageFeatures.Visible = false
+pageFeatures.ZIndex = 23
+pageFeatures.Parent = bodyHolder
+pages.features = pageFeatures
+
+local btnWallHop, wallHopStroke = makeOptionButton(pageFeatures, UDim2.new(0, 0, 0, 0), UDim2.new(0.32, 0, 0, 32), "wallHop")
+local btnNoWall, noWallStroke = makeOptionButton(pageFeatures, UDim2.new(0.34, 0, 0, 0), UDim2.new(0.32, 0, 0, 32), "noWall")
+local btnDoubleJump, doubleJumpStroke = makeOptionButton(pageFeatures, UDim2.new(0.68, 0, 0, 0), UDim2.new(0.32, 0, 0, 32), "doubleJump")
+local btnSafeHop, safeHopStroke = makeOptionButton(pageFeatures, UDim2.new(0, 0, 0, 36), UDim2.new(0.49, 0, 0, 32), "safeHop")
+local btnPov, povStroke = makeOptionButton(pageFeatures, UDim2.new(0.51, 0, 0, 36), UDim2.new(0.49, 0, 0, 32), "povOpt")
+
+local defaultFov = 70
+local minFov = 70
+local maxFov = 115
+local povValue = 70
+local povEnabled = false
+
+local povBox = Instance.new("Frame")
+povBox.Size = UDim2.new(1, 0, 0, 50)
+povBox.Position = UDim2.new(0, 0, 0, 72)
+povBox.BackgroundColor3 = Color3.fromRGB(25, 34, 54)
+povBox.BorderSizePixel = 0
+povBox.ZIndex = 24
+povBox.Parent = pageFeatures
+Instance.new("UICorner", povBox).CornerRadius = UDim.new(0, 9)
+
+local povSliderLabel = Instance.new("TextLabel")
+povSliderLabel.Size = UDim2.new(1, -16, 0, 18)
+povSliderLabel.Position = UDim2.new(0, 8, 0, 4)
+povSliderLabel.BackgroundTransparency = 1
+povSliderLabel.TextColor3 = Color3.fromRGB(235, 246, 255)
+povSliderLabel.Text = string.format(txt("povSliderFmt"), povValue)
+povSliderLabel.TextXAlignment = Enum.TextXAlignment.Right
+povSliderLabel.Font = Enum.Font.GothamBold
+povSliderLabel.TextSize = 10
+povSliderLabel.ZIndex = 25
+povSliderLabel.Parent = povBox
+
+local povWire = Instance.new("Frame")
+povWire.Size = UDim2.new(1, -24, 0, 5)
+povWire.Position = UDim2.new(0, 12, 0, 34)
+povWire.BackgroundColor3 = Color3.fromRGB(48, 64, 96)
+povWire.BorderSizePixel = 0
+povWire.ZIndex = 25
+povWire.Parent = povBox
+Instance.new("UICorner", povWire).CornerRadius = UDim.new(1, 0)
+
+local povWireFill = Instance.new("Frame")
+povWireFill.Size = UDim2.new(0, 0, 1, 0)
+povWireFill.BackgroundColor3 = Color3.fromRGB(0, 145, 255)
+povWireFill.BorderSizePixel = 0
+povWireFill.ZIndex = 26
+povWireFill.Parent = povWire
+Instance.new("UICorner", povWireFill).CornerRadius = UDim.new(1, 0)
+
+local povKnob = Instance.new("TextButton")
+povKnob.Size = UDim2.new(0, 14, 0, 14)
+povKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+povKnob.Position = UDim2.new(0, 0, 0.5, 0)
+povKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+povKnob.Text = ""
+povKnob.AutoButtonColor = false
+povKnob.ZIndex = 27
+povKnob.Parent = povWire
+Instance.new("UICorner", povKnob).CornerRadius = UDim.new(1, 0)
+
+local speedBox = Instance.new("Frame")
+speedBox.Size = UDim2.new(1, 0, 0, 62)
+speedBox.Position = UDim2.new(0, 0, 0, 126)
+speedBox.BackgroundColor3 = Color3.fromRGB(25, 34, 54)
+speedBox.BorderSizePixel = 0
+speedBox.ZIndex = 24
+speedBox.Parent = pageFeatures
+Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 9)
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, -46, 0, 22)
+speedLabel.Position = UDim2.new(0, 8, 0, 5)
+speedLabel.BackgroundColor3 = Color3.fromRGB(16, 22, 36)
+speedLabel.TextColor3 = Color3.fromRGB(235, 246, 255)
+speedLabel.Text = txt("speed")
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.TextSize = 10
+speedLabel.ZIndex = 25
+speedLabel.Parent = speedBox
+Instance.new("UICorner", speedLabel).CornerRadius = UDim.new(0, 6)
+
+local resetSpeedBtn = Instance.new("TextButton")
+resetSpeedBtn.Size = UDim2.new(0, 28, 0, 22)
+resetSpeedBtn.Position = UDim2.new(1, -36, 0, 5)
+resetSpeedBtn.BackgroundColor3 = Color3.fromRGB(34, 46, 70)
+resetSpeedBtn.TextColor3 = Color3.fromRGB(125, 220, 255)
+resetSpeedBtn.Text = "↺"
+resetSpeedBtn.Font = Enum.Font.GothamBold
+resetSpeedBtn.TextSize = 12
+resetSpeedBtn.AutoButtonColor = false
+resetSpeedBtn.ZIndex = 25
+resetSpeedBtn.Parent = speedBox
+Instance.new("UICorner", resetSpeedBtn).CornerRadius = UDim.new(0, 6)
+
+local speedWire = Instance.new("Frame")
+speedWire.Size = UDim2.new(1, -24, 0, 5)
+speedWire.Position = UDim2.new(0, 12, 0, 43)
+speedWire.BackgroundColor3 = Color3.fromRGB(48, 64, 96)
+speedWire.BorderSizePixel = 0
+speedWire.ZIndex = 25
+speedWire.Parent = speedBox
+Instance.new("UICorner", speedWire).CornerRadius = UDim.new(1, 0)
+
+local speedWireFill = Instance.new("Frame")
+speedWireFill.Size = UDim2.new(0.15, 0, 1, 0)
+speedWireFill.BackgroundColor3 = Color3.fromRGB(30, 185, 95)
+speedWireFill.BorderSizePixel = 0
+speedWireFill.ZIndex = 26
+speedWireFill.Parent = speedWire
+Instance.new("UICorner", speedWireFill).CornerRadius = UDim.new(1, 0)
+
+local speedKnob = Instance.new("TextButton")
+speedKnob.Size = UDim2.new(0, 14, 0, 14)
+speedKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+speedKnob.Position = UDim2.new(0.15, 0, 0.5, 0)
+speedKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+speedKnob.Text = ""
+speedKnob.AutoButtonColor = false
+speedKnob.ZIndex = 27
+speedKnob.Parent = speedWire
+Instance.new("UICorner", speedKnob).CornerRadius = UDim.new(1, 0)
+
+-- ==================== 3. EFFECTS ====================
+local pageEffects = Instance.new("Frame")
+pageEffects.Size = UDim2.new(1, 0, 1, 0)
+pageEffects.BackgroundTransparency = 1
+pageEffects.Visible = false
+pageEffects.ZIndex = 23
+pageEffects.Parent = bodyHolder
+pages.effects = pageEffects
+
+local btnFxAura, fxAuraStroke = makeOptionButton(pageEffects, UDim2.new(0, 0, 0, 8), UDim2.new(1, 0, 0, 44), "fxAura")
+local btnFxTrail, fxTrailStroke = makeOptionButton(pageEffects, UDim2.new(0, 0, 0, 60), UDim2.new(1, 0, 0, 44), "fxTrail")
+local btnFxClear, fxClearStroke = makeOptionButton(pageEffects, UDim2.new(0, 0, 0, 112), UDim2.new(1, 0, 0, 44), "fxClear")
+
+local auraOn = false
+local trailOn = false
+
+local function clearEffects()
+	pcall(function()
+		local oldHl = gui:FindFirstChild("GI_Hub_Highlight")
+		if oldHl then oldHl:Destroy() end
+	end)
+	local char = player.Character
+	if char then
+		for _, obj in ipairs(char:GetDescendants()) do
+			if obj.Name == "GI_Hub_Highlight" or obj.Name == "GI_Hub_Trail" or obj.Name == "GI_Hub_A0" or obj.Name == "GI_Hub_A1" then
+				pcall(function() obj:Destroy() end)
+			end
+		end
+	end
+end
+
+local function applyEffects()
+	clearEffects()
+	local char = player.Character
+	if not char then return end
+	if auraOn then
+		pcall(function()
+			local hl = Instance.new("Highlight")
+			hl.Name = "GI_Hub_Highlight"
+			hl.Adornee = char
+			hl.FillColor = Color3.fromRGB(30, 215, 115)
+			hl.OutlineColor = Color3.fromRGB(185, 255, 215)
+			hl.FillTransparency = 0.5
+			hl.OutlineTransparency = 0.05
+			hl.Parent = gui
+		end)
+	end
+	if trailOn then
+		pcall(function()
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				local a0 = Instance.new("Attachment")
+				a0.Name = "GI_Hub_A0"
+				a0.Position = Vector3.new(0, 1.2, 0)
+				a0.Parent = hrp
+				local a1 = Instance.new("Attachment")
+				a1.Name = "GI_Hub_A1"
+				a1.Position = Vector3.new(0, -1.2, 0)
+				a1.Parent = hrp
+				local tr = Instance.new("Trail")
+				tr.Name = "GI_Hub_Trail"
+				tr.Attachment0 = a0
+				tr.Attachment1 = a1
+				tr.Lifetime = 0.35
+				tr.MinLength = 0.05
+				tr.Color = ColorSequence.new(Color3.fromRGB(30, 215, 115), Color3.fromRGB(120, 220, 255))
+				tr.Transparency = NumberSequence.new(0.1, 1)
+				tr.Parent = hrp
+			end
+		end)
+	end
+end
+
+player.CharacterAdded:Connect(function()
+	if not isCurrentSession() then return end
+	task.wait(0.35)
+	applyEffects()
+end)
+
+bindClick(btnFxAura, function()
+	auraOn = not auraOn
+	paintGreen(btnFxAura, fxAuraStroke, auraOn)
+	applyEffects()
+end)
+
+bindClick(btnFxTrail, function()
+	trailOn = not trailOn
+	paintGreen(btnFxTrail, fxTrailStroke, trailOn)
+	applyEffects()
+end)
+
+bindClick(btnFxClear, function()
+	auraOn = false
+	trailOn = false
+	paintGreen(btnFxAura, fxAuraStroke, false)
+	paintGreen(btnFxTrail, fxTrailStroke, false)
+	clearEffects()
+	paintGreen(btnFxClear, fxClearStroke, true)
+	task.delay(0.25, function()
+		paintGreen(btnFxClear, fxClearStroke, false)
+	end)
+end)
+
+-- ==================== 4. QUALITY ====================
+local pageQuality = Instance.new("Frame")
+pageQuality.Size = UDim2.new(1, 0, 1, 0)
+pageQuality.BackgroundTransparency = 1
+pageQuality.Visible = false
+pageQuality.ZIndex = 23
+pageQuality.Parent = bodyHolder
+pages.quality = pageQuality
+
+local btnQFast, qFastStroke = makeOptionButton(pageQuality, UDim2.new(0, 0, 0, 8), UDim2.new(1, 0, 0, 44), "qFast")
+local btnQBal, qBalStroke = makeOptionButton(pageQuality, UDim2.new(0, 0, 0, 60), UDim2.new(1, 0, 0, 44), "qBalanced")
+local btnQHigh, qHighStroke = makeOptionButton(pageQuality, UDim2.new(0, 0, 0, 112), UDim2.new(1, 0, 0, 44), "qHigh")
+
+local qFastOn = false
+local qBalOn = false
+local qHighOn = false
+
+local function syncQualityButtons()
+	paintGreen(btnQFast, qFastStroke, qFastOn)
+	paintGreen(btnQBal, qBalStroke, qBalOn)
+	paintGreen(btnQHigh, qHighStroke, qHighOn)
+
+	pcall(function()
+		if qFastOn then
+			Lighting.GlobalShadows = false
+			for _, obj in ipairs(Lighting:GetChildren()) do
+				if obj:IsA("PostEffect") then obj.Enabled = false end
+			end
+			mainStroke.Color = Color3.fromRGB(110, 255, 170)
+		elseif qHighOn then
+			Lighting.GlobalShadows = false
+			mainStroke.Color = Color3.fromRGB(180, 248, 255)
+			mainStroke.Thickness = 2.1
+		elseif qBalOn then
+			Lighting.GlobalShadows = false
+			mainStroke.Color = Color3.fromRGB(135, 225, 255)
+			mainStroke.Thickness = 1.8
+		else
+			mainStroke.Color = Color3.fromRGB(135, 225, 255)
+			mainStroke.Thickness = 1.8
+		end
+	end)
+end
+
+bindClick(btnQFast, function()
+	qFastOn = not qFastOn
+	if qFastOn then qBalOn = false qHighOn = false end
+	syncQualityButtons()
+end)
+
+bindClick(btnQBal, function()
+	qBalOn = not qBalOn
+	if qBalOn then qFastOn = false qHighOn = false end
+	syncQualityButtons()
+end)
+
+bindClick(btnQHigh, function()
+	qHighOn = not qHighOn
+	if qHighOn then qFastOn = false qBalOn = false end
+	syncQualityButtons()
+end)
+
+-- ==================== 5. SETTINGS ====================
+local pageSettings = Instance.new("Frame")
+pageSettings.Size = UDim2.new(1, 0, 1, 0)
+pageSettings.BackgroundTransparency = 1
+pageSettings.Visible = false
+pageSettings.ZIndex = 23
+pageSettings.Parent = bodyHolder
+pages.settings = pageSettings
+
+local uiLockBtn, uiLockStroke = makeOptionButton(pageSettings, UDim2.new(0, 0, 0, 4), UDim2.new(0.49, 0, 0, 34), "uiLockOn")
+
+local scaleBox = Instance.new("Frame")
+scaleBox.Size = UDim2.new(0.49, 0, 0, 62)
+scaleBox.Position = UDim2.new(0, 0, 0, 44)
+scaleBox.BackgroundColor3 = Color3.fromRGB(25, 34, 54)
+scaleBox.BorderSizePixel = 0
+scaleBox.ZIndex = 24
+scaleBox.Parent = pageSettings
+Instance.new("UICorner", scaleBox).CornerRadius = UDim.new(0, 9)
+
+local scaleLbl = Instance.new("TextLabel")
+scaleLbl.Size = UDim2.new(1, -12, 0, 20)
+scaleLbl.Position = UDim2.new(0, 6, 0, 5)
+scaleLbl.BackgroundTransparency = 1
+scaleLbl.TextColor3 = Color3.fromRGB(235, 246, 255)
+scaleLbl.Text = string.format(txt("uiScaleFmt"), 1.00)
+scaleLbl.TextXAlignment = Enum.TextXAlignment.Right
+scaleLbl.Font = Enum.Font.GothamBold
+scaleLbl.TextSize = 10
+scaleLbl.ZIndex = 25
+scaleLbl.Parent = scaleBox
+
+local scaleWire = Instance.new("Frame")
+scaleWire.Size = UDim2.new(1, -20, 0, 5)
+scaleWire.Position = UDim2.new(0, 10, 0, 38)
+scaleWire.BackgroundColor3 = Color3.fromRGB(48, 64, 96)
+scaleWire.BorderSizePixel = 0
+scaleWire.ZIndex = 25
+scaleWire.Parent = scaleBox
+Instance.new("UICorner", scaleWire).CornerRadius = UDim.new(1, 0)
+
+local scaleWireFill = Instance.new("Frame")
+scaleWireFill.Size = UDim2.new(0.25, 0, 1, 0)
+scaleWireFill.BackgroundColor3 = Color3.fromRGB(0, 145, 255)
+scaleWireFill.BorderSizePixel = 0
+scaleWireFill.ZIndex = 26
+scaleWireFill.Parent = scaleWire
+Instance.new("UICorner", scaleWireFill).CornerRadius = UDim.new(1, 0)
+
+local scaleKnob = Instance.new("TextButton")
+scaleKnob.Size = UDim2.new(0, 14, 0, 14)
+scaleKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+scaleKnob.Position = UDim2.new(0.25, 0, 0.5, 0)
+scaleKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+scaleKnob.Text = ""
+scaleKnob.AutoButtonColor = false
+scaleKnob.ZIndex = 27
+scaleKnob.Parent = scaleWire
+Instance.new("UICorner", scaleKnob).CornerRadius = UDim.new(1, 0)
+
+local infoCard = Instance.new("Frame")
+infoCard.Size = UDim2.new(0.49, 0, 0, 166)
+infoCard.Position = UDim2.new(0.51, 0, 0, 4)
+infoCard.BackgroundColor3 = Color3.fromRGB(20, 27, 43)
+infoCard.BorderSizePixel = 0
+infoCard.ZIndex = 24
+infoCard.Parent = pageSettings
+Instance.new("UICorner", infoCard).CornerRadius = UDim.new(0, 11)
+
+local infoStroke = Instance.new("UIStroke")
+infoStroke.Color = Color3.fromRGB(125, 215, 255)
+infoStroke.Thickness = 1.1
+infoStroke.Transparency = 0.35
+infoStroke.Parent = infoCard
+
+local infoTitleLbl = Instance.new("TextLabel")
+infoTitleLbl.Size = UDim2.new(1, -14, 0, 22)
+infoTitleLbl.Position = UDim2.new(0, 7, 0, 6)
+infoTitleLbl.BackgroundTransparency = 1
+infoTitleLbl.TextColor3 = Color3.fromRGB(135, 225, 255)
+infoTitleLbl.Text = txt("infoTitle")
+infoTitleLbl.TextXAlignment = Enum.TextXAlignment.Right
+infoTitleLbl.Font = Enum.Font.GothamBlack
+infoTitleLbl.TextSize = 11
+infoTitleLbl.ZIndex = 25
+infoTitleLbl.Parent = infoCard
+
+local pingFpsLbl = Instance.new("TextLabel")
+pingFpsLbl.Size = UDim2.new(1, -14, 0, 32)
+pingFpsLbl.Position = UDim2.new(0, 7, 0, 32)
+pingFpsLbl.BackgroundColor3 = Color3.fromRGB(14, 19, 31)
+pingFpsLbl.TextColor3 = Color3.fromRGB(115, 255, 175)
+pingFpsLbl.Text = string.format(txt("pingFpsFmt"), 0, 60)
+pingFpsLbl.Font = Enum.Font.GothamBlack
+pingFpsLbl.TextSize = 10
+pingFpsLbl.ZIndex = 25
+pingFpsLbl.Parent = infoCard
+Instance.new("UICorner", pingFpsLbl).CornerRadius = UDim.new(0, 7)
+
+local tbStatsLbl = Instance.new("TextLabel")
+tbStatsLbl.Size = UDim2.new(1, -14, 0, 44)
+tbStatsLbl.Position = UDim2.new(0, 7, 0, 70)
+tbStatsLbl.BackgroundColor3 = Color3.fromRGB(14, 19, 31)
+tbStatsLbl.TextColor3 = Color3.fromRGB(255, 215, 105)
+tbStatsLbl.TextWrapped = true
+tbStatsLbl.Text = string.format(txt("tbStatsFmt"), 0, 0)
+tbStatsLbl.Font = Enum.Font.GothamBold
+tbStatsLbl.TextSize = 10
+tbStatsLbl.ZIndex = 25
+tbStatsLbl.Parent = infoCard
+Instance.new("UICorner", tbStatsLbl).CornerRadius = UDim.new(0, 7)
+
+local playerSpeedLbl = Instance.new("TextLabel")
+playerSpeedLbl.Size = UDim2.new(1, -14, 0, 34)
+playerSpeedLbl.Position = UDim2.new(0, 7, 0, 120)
+playerSpeedLbl.BackgroundTransparency = 1
+playerSpeedLbl.TextColor3 = Color3.fromRGB(228, 238, 255)
+playerSpeedLbl.TextWrapped = true
+playerSpeedLbl.TextXAlignment = Enum.TextXAlignment.Right
+playerSpeedLbl.Font = Enum.Font.GothamBold
+playerSpeedLbl.TextSize = 10
+playerSpeedLbl.ZIndex = 25
+playerSpeedLbl.Parent = infoCard
+
+-- ==================== LOGIC & CONTROLS ====================
+local speedTouched = false
+local currentSpeed = 16
+local livePing = 0
+local liveFps = 60
+local uiScaleValue = 1.0
+local minUiScale = 0.75
+local maxUiScale = 1.35
+
+local function getTimeBombStats()
+	local kills, wins = 0, 0
+	pcall(function()
+		local function scanContainer(container)
+			if not container then return end
+			for _, child in ipairs(container:GetDescendants()) do
+				if child:IsA("IntValue") or child:IsA("NumberValue") then
+					local n = string.lower(child.Name)
+					if n == "kills" or n == "ko" or n == "kos" or string.find(n, "kill", 1, true) then
+						kills = math.max(kills, tonumber(child.Value) or 0)
+					elseif n == "wins" or n == "win" or string.find(n, "win", 1, true) then
+						wins = math.max(wins, tonumber(child.Value) or 0)
+					end
+				end
+			end
+		end
+		scanContainer(player:FindFirstChild("leaderstats"))
+		scanContainer(player)
+	end)
+	return math.floor(kills), math.floor(wins)
+end
+
+local function syncAssistVisuals()
+	assistBtn.Text = assistMenuEnabled and txt("assistOn") or txt("assistOff")
+	paintGreen(assistBtn, assistStroke, assistMenuEnabled)
+
+	assistFloatingBtn.Visible = assistMenuEnabled
+	assistFloatingBtn.Text = assistRunning and txt("assistOn") or txt("assistOff")
+	paintGreen(assistFloatingBtn, assistFloatStroke, assistRunning)
+
+	if not (assistMenuEnabled and assistRunning) then
+		targetStatusLbl.Text = txt("targetNone")
+	end
+end
+
+local function syncUiLockVisuals()
+	uiLockBtn.Text = uiDragEnabled and txt("uiLockOn") or txt("uiLockOff")
+	paintGreen(uiLockBtn, uiLockStroke, uiDragEnabled)
+end
+
+local function refreshLabels()
+	syncAssistVisuals()
+	syncUiLockVisuals()
+	rangeLbl.Text = string.format(txt("rangeFmt"), rangeValue)
+	gapLbl.Text = string.format(txt("gapFmt"), gapValue)
+	btnWallHop.Text = txt("wallHop")
+	btnNoWall.Text = txt("noWall")
+	btnDoubleJump.Text = txt("doubleJump")
+	btnSafeHop.Text = txt("safeHop")
+	btnPov.Text = txt("povOpt")
+	povSliderLabel.Text = string.format(txt("povSliderFmt"), povValue)
+	btnFxAura.Text = txt("fxAura")
+	btnFxTrail.Text = txt("fxTrail")
+	btnFxClear.Text = txt("fxClear")
+	btnQFast.Text = txt("qFast")
+	btnQBal.Text = txt("qBalanced")
+	btnQHigh.Text = txt("qHigh")
+	scaleLbl.Text = string.format(txt("uiScaleFmt"), uiScaleValue)
+	infoTitleLbl.Text = txt("infoTitle")
+	pingFpsLbl.Text = string.format(txt("pingFpsFmt"), livePing, liveFps)
+	local tbKills, tbWins = getTimeBombStats()
+	tbStatsLbl.Text = string.format(txt("tbStatsFmt"), tbKills, tbWins)
+	playerSpeedLbl.Text = string.format(txt("playerSpeedFmt"), player.Name, math.floor(currentSpeed + 0.5))
+	tAssist.Text = txt("tabAssist")
+	tFeatures.Text = txt("tabFeatures")
+	tEffects.Text = txt("tabEffects")
+	tQuality.Text = txt("tabQuality")
+	tSettings.Text = txt("tabSettings")
+end
+
+bindClick(uiLockBtn, function()
+	uiDragEnabled = not uiDragEnabled
+	syncUiLockVisuals()
+end)
+
+bindClick(assistBtn, function()
+	assistMenuEnabled = not assistMenuEnabled
+	if not assistMenuEnabled then
+		assistRunning = false
+	end
+	syncAssistVisuals()
+end)
+
+makeDraggable(assistFloatingBtn, function()
+	if not assistMenuEnabled then return end
+	assistRunning = not assistRunning
+	syncAssistVisuals()
+end)
+
+local function updateRange(v)
+	rangeValue = math.clamp(math.floor(v + 0.5), 10, 80)
+	rangeFill.Size = UDim2.new((rangeValue - 10) / 70, 0, 1, 0)
+	refreshLabels()
+end
+
+local function updateGap(v)
+	gapValue = math.clamp(math.floor(v * 10 + 0.5) / 10, 1.5, 10.0)
+	gapFill.Size = UDim2.new((gapValue - 1.5) / 8.5, 0, 1, 0)
+	refreshLabels()
+end
+
+local function setPovAlpha(a, adjustToggle)
+	a = math.clamp(a, 0, 1)
+	povWireFill.Size = UDim2.new(a, 0, 1, 0)
+	povKnob.Position = UDim2.new(a, 0, 0.5, 0)
+	povValue = math.floor(minFov + ((maxFov - minFov) * a) + 0.5)
+	povSliderLabel.Text = string.format(txt("povSliderFmt"), povValue)
+
+	if adjustToggle then
+		povEnabled = (povValue > minFov)
+		paintGreen(btnPov, povStroke, povEnabled)
+	end
+end
+
+local function setUiScaleAlpha(a)
+	a = math.clamp(a, 0, 1)
+	scaleWireFill.Size = UDim2.new(a, 0, 1, 0)
+	scaleKnob.Position = UDim2.new(a, 0, 0.5, 0)
+	local rawScale = minUiScale + ((maxUiScale - minUiScale) * a)
+	uiScaleValue = math.floor(rawScale * 100 + 0.5) / 100
+	scaleLbl.Text = string.format(txt("uiScaleFmt"), uiScaleValue)
+end
+
+setUiScaleAlpha((1.0 - minUiScale) / (maxUiScale - minUiScale))
+
+do
+	local dragR, dragG, dragP, dragS = false, false, false, false
+	rangeBar.InputBegan:Connect(function(input)
+		if not isCurrentSession() then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragR = true
+			local w = rangeBar.AbsoluteSize.X
+			if w > 1 then updateRange(10 + math.clamp((input.Position.X - rangeBar.AbsolutePosition.X) / w, 0, 1) * 70) end
+		end
+	end)
+	gapBar.InputBegan:Connect(function(input)
+		if not isCurrentSession() then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragG = true
+			local w = gapBar.AbsoluteSize.X
+			if w > 1 then updateGap(1.5 + math.clamp((input.Position.X - gapBar.AbsolutePosition.X) / w, 0, 1) * 8.5) end
+		end
+	end)
+	povKnob.InputBegan:Connect(function(input)
+		if not isCurrentSession() then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragP = true
+			local w = povWire.AbsoluteSize.X
+			if w > 1 then setPovAlpha((input.Position.X - povWire.AbsolutePosition.X) / w, true) end
+		end
+	end)
+	povWire.InputBegan:Connect(function(input)
+		if not isCurrentSession() then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragP = true
+			local w = povWire.AbsoluteSize.X
+			if w > 1 then setPovAlpha((input.Position.X - povWire.AbsolutePosition.X) / w, true) end
+		end
+	end)
+	scaleKnob.InputBegan:Connect(function(input)
+		if not isCurrentSession() then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragS = true
+			local w = scaleWire.AbsoluteSize.X
+			if w > 1 then setUiScaleAlpha((input.Position.X - scaleWire.AbsolutePosition.X) / w) end
+		end
+	end)
+	scaleWire.InputBegan:Connect(function(input)
+		if not isCurrentSession() then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragS = true
+			local w = scaleWire.AbsoluteSize.X
+			if w > 1 then setUiScaleAlpha((input.Position.X - scaleWire.AbsolutePosition.X) / w) end
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if not isCurrentSession() then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+			if dragR then
+				local w = rangeBar.AbsoluteSize.X
+				if w > 1 then updateRange(10 + math.clamp((input.Position.X - rangeBar.AbsolutePosition.X) / w, 0, 1) * 70) end
+			end
+			if dragG then
+				local w = gapBar.AbsoluteSize.X
+				if w > 1 then updateGap(1.5 + math.clamp((input.Position.X - gapBar.AbsolutePosition.X) / w, 0, 1) * 8.5) end
+			end
+			if dragP then
+				local w = povWire.AbsoluteSize.X
+				if w > 1 then setPovAlpha((input.Position.X - povWire.AbsolutePosition.X) / w, true) end
+			end
+			if dragS then
+				local w = scaleWire.AbsoluteSize.X
+				if w > 1 then setUiScaleAlpha((input.Position.X - scaleWire.AbsolutePosition.X) / w) end
+			end
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragR = false
+			dragG = false
+			dragP = false
+			dragS = false
+		end
+	end)
+end
+
+local dashCreated = false
+local dashState = false
+local dashFloatingBtn = nil
+local dashFloatingStroke = nil
+local dashIsRunning = false
+local dashActiveBv = nil
+
+local function syncDashFloatVisuals()
+	if not dashFloatingBtn then return end
+	dashFloatingBtn.Visible = dashState
+	dashFloatingBtn.Text = dashIsRunning and txt("dashOn") or txt("dashOff")
+	paintGreen(dashFloatingBtn, dashFloatingStroke, dashIsRunning)
+end
+
+local function stopDashMotion()
+	dashIsRunning = false
+	if dashActiveBv and dashActiveBv.Parent then
+		pcall(function() dashActiveBv:Destroy() end)
+	end
+	dashActiveBv = nil
+	syncDashFloatVisuals()
+end
+
+bindClick(dashSpawnBtn, function()
+	dashState = not dashState
+	paintGreen(dashSpawnBtn, dashSpawnStroke, dashState)
+
+	if not dashState then
+		stopDashMotion()
+		if dashFloatingBtn then
+			dashFloatingBtn.Visible = false
+		end
+		return
+	end
+
+	if not dashCreated then
+		dashCreated = true
+		pcall(function()
+			local power = 15
+			local stepTime = 0.12
+
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(0, 120, 0, 34)
+			btn.AnchorPoint = Vector2.new(0.5, 0.5)
+			btn.Position = UDim2.new(0.5, 0, 0.78, 0)
+			btn.BackgroundColor3 = Color3.fromRGB(25, 34, 54)
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			btn.Text = txt("dashOff")
+			btn.Font = Enum.Font.GothamBold
+			btn.TextSize = 12
+			btn.AutoButtonColor = false
+			btn.ZIndex = 90
+			btn.Parent = gui
+			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+			local fStroke = Instance.new("UIStroke")
+			fStroke.Color = Color3.fromRGB(135, 225, 255)
+			fStroke.Thickness = 1.2
+			fStroke.Parent = btn
+
+			dashFloatingBtn = btn
+			dashFloatingStroke = fStroke
+
+			makeDraggable(btn, function()
+				if not dashState then return end
+				if dashIsRunning then
+					stopDashMotion()
+					return
+				end
+				dashIsRunning = true
+				syncDashFloatVisuals()
+				task.spawn(function()
+					pcall(function()
+						local char = player.Character
+						local hrp = char and char:FindFirstChild("HumanoidRootPart")
+						local hum = char and char:FindFirstChildOfClass("Humanoid")
+						if not hrp or not hum or hum.Health <= 0 then return end
+						local look = hrp.CFrame.LookVector
+						local straightDir = Vector3.new(look.X, 0, look.Z)
+						straightDir = straightDir.Magnitude > 0.001 and straightDir.Unit or Vector3.new(0, 0, -1)
+						local bv = Instance.new("BodyVelocity")
+						bv.MaxForce = Vector3.new(1e5, 0, 1e5)
+						bv.P = 1e4
+						bv.Velocity = Vector3.zero
+						bv.Parent = hrp
+						dashActiveBv = bv
+						for _ = 1, 20 do
+							if not dashState or not dashIsRunning or not bv or not bv.Parent or not hrp or not hrp.Parent or not hum or hum.Health <= 0 then break end
+							bv.Velocity = straightDir * power
+							task.wait(stepTime)
+							if not dashState or not dashIsRunning or not bv or not bv.Parent or not hrp or not hrp.Parent or not hum or hum.Health <= 0 then break end
+							bv.Velocity = -straightDir * power
+							task.wait(stepTime)
+						end
+					end)
+					stopDashMotion()
+				end)
+			end)
+		end)
+	end
+
+	syncDashFloatVisuals()
+end)
+
+local wallHopEnabled = false
+local noWallEnabled = false
+local doubleJumpEnabled = false
+local safeHopEnabled = false
+
+bindClick(btnWallHop, function()
+	wallHopEnabled = not wallHopEnabled
+	paintGreen(btnWallHop, wallHopStroke, wallHopEnabled)
+end)
+
+bindClick(btnNoWall, function()
+	noWallEnabled = not noWallEnabled
+	paintGreen(btnNoWall, noWallStroke, noWallEnabled)
+end)
+
+bindClick(btnDoubleJump, function()
+	doubleJumpEnabled = not doubleJumpEnabled
+	paintGreen(btnDoubleJump, doubleJumpStroke, doubleJumpEnabled)
+end)
+
+bindClick(btnSafeHop, function()
+	safeHopEnabled = not safeHopEnabled
+	paintGreen(btnSafeHop, safeHopStroke, safeHopEnabled)
+	if safeHopEnabled then
+		pcall(function()
+			local char = player.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			if hrp and hum and hum.Health > 0 then
+				hum:ChangeState(Enum.HumanoidStateType.Jumping)
+				hum.Jump = true
+				local look = hrp.CFrame.LookVector
+				local flat = Vector3.new(look.X, 0, look.Z)
+				flat = flat.Magnitude > 0.01 and flat.Unit or Vector3.new(0, 0, -1)
+				local spd = math.max(hum.WalkSpeed, 20)
+				local v = hrp.AssemblyLinearVelocity
+				hrp.AssemblyLinearVelocity = Vector3.new(flat.X * spd, math.max(v.Y, 50), flat.Z * spd)
+			end
+		end)
+	end
+end)
+
+bindClick(btnPov, function()
+	if povEnabled then
+		povEnabled = false
+		paintGreen(btnPov, povStroke, false)
+	else
+		if povValue <= minFov then
+			setPovAlpha(0.62, false)
+		end
+		povEnabled = true
+		paintGreen(btnPov, povStroke, true)
+	end
+end)
+
+do
+	local minSpeed = 8
+	local maxSpeed = 60
+	local defaultSpeed = 16
+	local sliding = false
+
+	local function setSpeedAlpha(a, mark)
+		a = math.clamp(a, 0, 1)
+		speedWireFill.Size = UDim2.new(a, 0, 1, 0)
+		speedKnob.Position = UDim2.new(a, 0, 0.5, 0)
+		currentSpeed = minSpeed + ((maxSpeed - minSpeed) * a)
+		if mark then
+			speedTouched = true
+			speedLabel.Text = string.format("%s (%d)", txt("speed"), math.floor(currentSpeed + 0.5))
+		else
+			speedLabel.Text = txt("speed")
+		end
+		refreshLabels()
+	end
+
+	local function fromX(x)
+		local w = speedWire.AbsoluteSize.X
+		if w > 1 then setSpeedAlpha((x - speedWire.AbsolutePosition.X) / w, true) end
+	end
+
+	speedKnob.InputBegan:Connect(function(input)
+		if not isCurrentSession() then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			sliding = true
+			fromX(input.Position.X)
+		end
+	end)
+	speedWire.InputBegan:Connect(function(input)
+		if not isCurrentSession() then return end
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			sliding = true
+			fromX(input.Position.X)
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if not isCurrentSession() then return end
+		if sliding and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+			fromX(input.Position.X)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			sliding = false
+		end
+	end)
+
+	bindClick(resetSpeedBtn, function()
+		speedTouched = false
+		currentSpeed = defaultSpeed
+		setSpeedAlpha((defaultSpeed - minSpeed) / (maxSpeed - minSpeed), false)
+		pcall(function()
+			local char = player.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			if hum and hum.Health > 0 then hum.WalkSpeed = defaultSpeed end
+		end)
+	end)
+end
+
+local renderConn
+renderConn = RunService.RenderStepped:Connect(function(dt)
+	if not isCurrentSession() or not gui.Parent then
+		if renderConn then renderConn:Disconnect() end
+		return
+	end
+
+	pcall(function()
+		local cam = workspace.CurrentCamera
+		if cam then
+			local targetFov = povEnabled and povValue or defaultFov
+			cam.FieldOfView = cam.FieldOfView + ((targetFov - cam.FieldOfView) * math.clamp(dt * 14, 0, 1))
+		end
+	end)
+
+	pcall(function()
+		if mainFrame.Visible then
+			mainScale.Scale = mainScale.Scale + ((uiScaleValue - mainScale.Scale) * math.clamp(dt * 16, 0, 1))
+		end
+	end)
+end)
+
+task.spawn(function()
+	while isCurrentSession() and gui.Parent do
+		task.wait(1)
+		if not isCurrentSession() or not gui.Parent then break end
+		pcall(function()
+			liveFps = math.clamp(math.floor(1 / math.max(RunService.RenderStepped:Wait(), 0.001) + 0.5), 1, 240)
+			local net = Stats and Stats:FindFirstChild("Network")
+			local pingItem = net and net:FindFirstChild("ServerStatsItem") and net.ServerStatsItem:FindFirstChild("Data Ping")
+			if pingItem then livePing = math.floor(pingItem:GetValue() + 0.5) end
+			refreshLabels()
+		end)
+	end
+end)
+
+do
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+	rayParams.IgnoreWater = true
+	local lastHop = 0
+	local leftAir = false
+	local lastJump = 0
+
+	local function isWallPart(part, normal, character)
+		if not part or not part:IsA("BasePart") or not part.CanCollide then return false end
+		if character and part:IsDescendantOf(character) then return false end
+		if normal and math.abs(normal.Y) > 0.45 then return false end
+		local lower = string.lower(part.Name)
+		if string.find(lower, "stair", 1, true) or string.find(lower, "step", 1, true) or string.find(part.Name, "درج", 1, true) then
+			return false
+		end
+		if part:IsA("WedgePart") or part:IsA("TrussPart") then return false end
+		return part.Size.Y >= 3
+	end
+
+	UserInputService.JumpRequest:Connect(function()
+		if not isCurrentSession() or not doubleJumpEnabled then return end
+		local now = os.clock()
+		if now - lastJump < 0.12 then return end
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if not hrp or not hum or hum.Health <= 0 then return end
+		local st = hum:GetState()
+		local onGround = (st == Enum.HumanoidStateType.Running or st == Enum.HumanoidStateType.RunningNoPhysics or st == Enum.HumanoidStateType.Landed)
+		if onGround then
+			leftAir = false
+		elseif leftAir then
+			lastJump = now
+			local jv = hum.UseJumpPower and math.max(hum.JumpPower, 52) or 52
+			local v = hrp.AssemblyLinearVelocity
+			hrp.AssemblyLinearVelocity = Vector3.new(v.X, math.max(v.Y * 0.25, jv), v.Z)
+			hum:ChangeState(En
